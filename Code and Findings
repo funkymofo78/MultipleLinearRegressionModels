@@ -1,0 +1,149 @@
+
+dev()
+library(stats)
+
+pairs(swiss)
+
+###create correlation values in lower panel in R with size of text indiciating
+###how strong the correlation value is 
+### run panel.cor function
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
+{
+  usr <- par("usr"); on.exit(par(usr))
+  par(usr = c(0, 1, 0, 1))
+  r <- cor(x, y)
+  txt <- format(c(r, 0.123456789), digits = digits)[1]
+  txt <- paste0(prefix, txt)
+  if(missing(cex.cor)) cex.cor <- 0.8/strwidth(txt)
+  text(0.5, 0.5, txt, cex = cex.cor * (abs(r)+0.12))
+}
+pairs(swiss, upper.panel = panel.smooth, lower.panel = panel.cor)
+
+
+#Fit the multiple regression model you think most appropriate based Comment on whether the assumptions are satisfied, 
+#interpretation of the results and the fit of the model.
+
+
+fit_fert_exam<-lm(Fertility~Examination,data=swiss) #slr model
+fit_full<-lm(Fertility~Agriculture+Examination+Education+
+               Catholic+Infant.Mortality,data=swiss) #full model
+
+summary(fit_full)
+
+## Decide to remove Exam as this partial slope is not
+## significant and it had moderate strong correlation with 
+## education and agriculture
+
+fit_reduced<-lm(Fertility~Agriculture+Education+
+                  Catholic+Infant.Mortality,data=swiss)
+
+
+par(mfrow=c(2,1))
+plot(fit_reduced,which=1:2)
+## happy with iid and equal variance assumption
+dev.off()
+
+plot(fit_reduced,which=2)
+hist((fit_reduced$residuals))
+hist(scale(fit_reduced$residuals)) #creates standardised residuals and plots histogram
+#roughly happy with normality asssumption for sake of this example
+#could argue not approp and bootstrapping
+
+plot(fit_reduced,which=5)
+
+
+
+#happy with plot as no high influential pts 
+
+summary(fit_reduced)
+
+#y=62-0.15*Agri-0.98*Educ+0.12*Cath+1.08*Infant
+# for every 1 percentage increase in Agri, leads to
+#on average a decrease of 0.15 in fertility measure,
+#while keeping the other predictors constant.
+#all partial slopes are significantly different from 0
+# as p-values are below 0.05
+
+
+dev.off()
+library(car)
+avPlots(fit_reduced)
+
+#we can see that all predictors when considering the other predictors
+# have roughly a linear relationship with fertility.
+
+summary(fit_full)
+
+# when we compare it to the previous full model we see that 
+# the residual standard error has increased slighlty by 0.003 to 
+#7.168 and the adjusted R^2 has decreased slighlty by 0.003 
+#to 0.6707, Our F-statsitic tell us that when comparing the
+#reduced model to the null model (just intercept), this model is 
+#preferred as at least one partial slope is significantly different
+# to 0, p-value < 1.717x10^-10
+
+#to compare the full model with reduced model we use f-test in anova
+#H0: true partial slope for examination = 0 (reduced model is better)
+#H1: true partial slope for examination != 0 (fuller model is better)
+anova(fit_full,fit_reduced)
+
+#p-value = 0.3155 >0.05, so fail to reject H0 that
+# the true partial slope for examination is 0
+#i.e. no need to add it to the model
+# same t-test p-value this method better for
+#comparing models where two or more parameters have
+#been removed
+fiona_md<-lm(Fertility~Examination+
+               Catholic+Infant.Mortality,data=swiss)
+
+
+par(mfrow=c(2,1))
+plot(fiona_md,which=1:2)
+hist(fiona_md$residuals)
+plot(fiona_md,which=5)
+
+summary(fiona_md)
+
+anova(fiona_md,fit_reduced)
+
+
+#
+library(stats)
+AIC(fit_fert_exam,fit_full,fit_reduced)
+
+BIC(fit_fert_exam,fit_full,fit_reduced)
+
+AIC(fit_fert_exam,fit_full,fit_reduced,fiona_md)
+
+BIC(fit_fert_exam,fit_full,fit_reduced,fiona_md)
+
+
+
+## can see that the reduced model has the lowest AIC
+#and BIC therefore suggesting it is the preferred model
+#and since the change in adjusted R^2 and residual SE 
+#was only very slight in preference for the full model
+# and all terms are significant, the reduced model is 
+#preferred.
+
+#use help(predict) to understand
+new_data<-data.frame(Agriculture=0.4,Examination=0.12,
+                     Education=0.07,Catholic=0.78,
+                     Infant.Mortality=0.185)
+predict(fit_reduced,new_data)
+predict(fiona_md,new_data)
+
+
+#predict(fit_full,new_data) if you preferred this model
+
+
+library(car)
+vif(fit_full)
+vif(fit_reduced)
+vif(fiona_md)
+#can see no VIF higher than 10 suggesting approximate collinearity
+#but Examination has the highest VIF suggesting it has the highest
+#multicollinearity with the other predictors in the model.
+
+vif(fit_reduced)
+# VIF have reduced after removing examination.
